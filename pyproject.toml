@@ -5,9 +5,11 @@ description = "Add your description here"
 readme = "README.md"
 requires-python = ">=3.12"
 dependencies = [
+    "altair==4.2.2",
     "fastapi>=0.129.0",
     "ipython>=9.10.0",
     "pandas>=3.0.1",
     "sqlalchemy>=2.0.46",
+    "streamlit>=1.19.0",
     "uvicorn>=0.41.0",
 ]
