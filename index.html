@@ -1,105 +1,816 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-    <title>URL Shortener</title>
-    <style>
-        body {
-            font-family: Arial, sans-serif;
-            max-width: 500px;
-            margin: 50px auto;
-        }
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SNIP — URL Shortener</title>
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Mono:ital,wght@0,300;0,400;0,500;1,300&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
-        input, button {
-            width: 100%;
-            padding: 8px;
-            margin-top: 10px;
-        }
+  :root {
+    --bg: #0a0a08;
+    --surface: #111110;
+    --border: #222220;
+    --accent: #e8ff47;
+    --accent2: #ff6b35;
+    --text: #f0ede8;
+    --muted: #5a5a55;
+    --success: #47ffa0;
+  }
 
-        button {
-            cursor: pointer;
-        }
+  html { scroll-behavior: smooth; }
 
-        .box {
-            margin-top: 20px;
-            padding: 10px;
-            background: #f2f2f2;
-        }
-    </style>
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'DM Sans', sans-serif;
+    min-height: 100vh;
+    overflow-x: hidden;
+    cursor: crosshair;
+  }
+
+  /* Animated grain */
+  body::before {
+    content: '';
+    position: fixed;
+    inset: -50%;
+    width: 200%;
+    height: 200%;
+    background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 512 512' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.75' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.04'/%3E%3C/svg%3E");
+    opacity: 0.35;
+    pointer-events: none;
+    z-index: 100;
+    animation: grain 0.5s steps(2) infinite;
+  }
+
+  @keyframes grain {
+    0%, 100% { transform: translate(0, 0); }
+    10% { transform: translate(-1%, -1%); }
+    20% { transform: translate(1%, 0%); }
+    30% { transform: translate(0%, 1%); }
+    40% { transform: translate(-1%, 0%); }
+    50% { transform: translate(1%, 1%); }
+    60% { transform: translate(0%, -1%); }
+    70% { transform: translate(-1%, 1%); }
+    80% { transform: translate(1%, -1%); }
+    90% { transform: translate(-1%, 0%); }
+  }
+
+  /* Glowing orb bg */
+  .orb {
+    position: fixed;
+    border-radius: 50%;
+    filter: blur(120px);
+    pointer-events: none;
+    z-index: 0;
+    transition: all 2s ease;
+  }
+  .orb1 {
+    width: 600px; height: 600px;
+    background: radial-gradient(circle, rgba(232,255,71,0.08), transparent 70%);
+    top: -200px; left: -200px;
+    animation: drift1 12s ease-in-out infinite;
+  }
+  .orb2 {
+    width: 500px; height: 500px;
+    background: radial-gradient(circle, rgba(255,107,53,0.06), transparent 70%);
+    bottom: -150px; right: -150px;
+    animation: drift2 15s ease-in-out infinite;
+  }
+
+  @keyframes drift1 {
+    0%, 100% { transform: translate(0, 0); }
+    50% { transform: translate(80px, 60px); }
+  }
+  @keyframes drift2 {
+    0%, 100% { transform: translate(0, 0); }
+    50% { transform: translate(-60px, -40px); }
+  }
+
+  /* Layout */
+  .container {
+    max-width: 780px;
+    margin: 0 auto;
+    padding: 0 24px;
+    position: relative;
+    z-index: 10;
+  }
+
+  /* Header */
+  header {
+    padding: 48px 0 80px;
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    animation: fadeDown 0.6s ease both;
+  }
+
+  .logo {
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: 2rem;
+    letter-spacing: 0.08em;
+    color: var(--accent);
+    text-decoration: none;
+    line-height: 1;
+  }
+  .logo span { color: var(--muted); }
+
+  .nav-stats {
+    font-family: 'DM Mono', monospace;
+    font-size: 0.7rem;
+    color: var(--muted);
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    cursor: pointer;
+    border: 1px solid var(--border);
+    padding: 8px 14px;
+    border-radius: 2px;
+    transition: all 0.2s;
+  }
+  .nav-stats:hover {
+    border-color: var(--accent);
+    color: var(--accent);
+  }
+
+  /* Hero */
+  .hero {
+    margin-bottom: 64px;
+    animation: fadeUp 0.7s 0.1s ease both;
+  }
+
+  h1 {
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: clamp(4rem, 12vw, 8rem);
+    line-height: 0.9;
+    letter-spacing: 0.02em;
+    margin-bottom: 20px;
+  }
+
+  h1 .line1 { display: block; color: var(--text); }
+  h1 .line2 { display: block; color: var(--accent); -webkit-text-stroke: 0px; }
+  h1 .line3 { display: block; color: transparent; -webkit-text-stroke: 1px var(--muted); }
+
+  .tagline {
+    font-family: 'DM Mono', monospace;
+    font-size: 0.8rem;
+    color: var(--muted);
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
+    margin-top: 16px;
+  }
+
+  /* Main form card */
+  .card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    padding: 40px;
+    margin-bottom: 24px;
+    animation: fadeUp 0.7s 0.2s ease both;
+    position: relative;
+    overflow: hidden;
+  }
+
+  .card::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    height: 1px;
+    background: linear-gradient(90deg, transparent, var(--accent), transparent);
+    opacity: 0;
+    transition: opacity 0.3s;
+  }
+  .card:focus-within::before { opacity: 1; }
+
+  .label {
+    font-family: 'DM Mono', monospace;
+    font-size: 0.65rem;
+    letter-spacing: 0.2em;
+    text-transform: uppercase;
+    color: var(--muted);
+    margin-bottom: 10px;
+    display: block;
+  }
+
+  .input-row {
+    display: flex;
+    gap: 12px;
+    align-items: stretch;
+  }
+
+  input[type="text"], input[type="url"] {
+    flex: 1;
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 2px;
+    padding: 16px 20px;
+    color: var(--text);
+    font-family: 'DM Mono', monospace;
+    font-size: 0.9rem;
+    outline: none;
+    transition: border-color 0.2s, box-shadow 0.2s;
+    width: 100%;
+  }
+
+  input[type="text"]:focus, input[type="url"]:focus {
+    border-color: var(--accent);
+    box-shadow: 0 0 0 3px rgba(232,255,71,0.08);
+  }
+
+  input::placeholder { color: var(--muted); }
+
+  .btn {
+    background: var(--accent);
+    color: #0a0a08;
+    border: none;
+    border-radius: 2px;
+    padding: 16px 32px;
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: 1.1rem;
+    letter-spacing: 0.1em;
+    cursor: pointer;
+    transition: all 0.15s;
+    white-space: nowrap;
+    position: relative;
+    overflow: hidden;
+  }
+
+  .btn::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: white;
+    opacity: 0;
+    transition: opacity 0.15s;
+  }
+
+  .btn:hover { transform: translateY(-1px); box-shadow: 0 8px 24px rgba(232,255,71,0.25); }
+  .btn:active { transform: translateY(0); }
+  .btn:hover::after { opacity: 0.05; }
+
+  .btn.secondary {
+    background: transparent;
+    color: var(--text);
+    border: 1px solid var(--border);
+  }
+  .btn.secondary:hover {
+    border-color: var(--accent);
+    color: var(--accent);
+    box-shadow: none;
+  }
+
+  .btn:disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+    transform: none;
+  }
+
+  /* Result */
+  .result-box {
+    display: none;
+    margin-top: 24px;
+    padding-top: 24px;
+    border-top: 1px solid var(--border);
+    animation: fadeUp 0.4s ease both;
+  }
+
+  .result-box.show { display: block; }
+
+  .result-label {
+    font-family: 'DM Mono', monospace;
+    font-size: 0.6rem;
+    letter-spacing: 0.25em;
+    text-transform: uppercase;
+    color: var(--success);
+    margin-bottom: 10px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .result-label::before {
+    content: '';
+    width: 6px; height: 6px;
+    border-radius: 50%;
+    background: var(--success);
+    animation: pulse 1.5s ease infinite;
+  }
+
+  @keyframes pulse {
+    0%, 100% { opacity: 1; transform: scale(1); }
+    50% { opacity: 0.4; transform: scale(0.8); }
+  }
+
+  .result-url {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 2px;
+    padding: 14px 20px;
+  }
+
+  .result-url span {
+    flex: 1;
+    font-family: 'DM Mono', monospace;
+    font-size: 1rem;
+    color: var(--accent);
+    letter-spacing: 0.05em;
+  }
+
+  .copy-btn {
+    background: none;
+    border: 1px solid var(--border);
+    color: var(--muted);
+    padding: 6px 14px;
+    border-radius: 2px;
+    font-family: 'DM Mono', monospace;
+    font-size: 0.65rem;
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
+    cursor: pointer;
+    transition: all 0.2s;
+    white-space: nowrap;
+  }
+
+  .copy-btn:hover { border-color: var(--accent); color: var(--accent); }
+  .copy-btn.copied { border-color: var(--success); color: var(--success); }
+
+  /* Stats section */
+  .stats-section {
+    display: none;
+    animation: fadeUp 0.4s ease both;
+  }
+  .stats-section.show { display: block; }
+
+  .section-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 20px;
+  }
+
+  .section-title {
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: 1.6rem;
+    letter-spacing: 0.08em;
+    color: var(--text);
+  }
+
+  .stats-form .input-row {
+    display: flex;
+    gap: 12px;
+  }
+
+  .stats-grid {
+    display: none;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 16px;
+    margin-top: 20px;
+    animation: fadeUp 0.4s ease both;
+  }
+  .stats-grid.show { display: grid; }
+
+  .stat-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    padding: 24px;
+    position: relative;
+    overflow: hidden;
+    transition: border-color 0.2s;
+  }
+  .stat-card:hover { border-color: var(--muted); }
+
+  .stat-card::after {
+    content: attr(data-num);
+    position: absolute;
+    bottom: -10px; right: 10px;
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: 5rem;
+    color: var(--border);
+    line-height: 1;
+    pointer-events: none;
+    transition: color 0.2s;
+  }
+  .stat-card:hover::after { color: #1a1a18; }
+
+  .stat-label {
+    font-family: 'DM Mono', monospace;
+    font-size: 0.6rem;
+    letter-spacing: 0.2em;
+    text-transform: uppercase;
+    color: var(--muted);
+    margin-bottom: 8px;
+  }
+
+  .stat-value {
+    font-family: 'DM Mono', monospace;
+    font-size: 0.9rem;
+    color: var(--text);
+    word-break: break-all;
+    line-height: 1.4;
+  }
+
+  .stat-big {
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: 3rem;
+    color: var(--accent);
+    line-height: 1;
+  }
+
+  /* Error */
+  .error-msg {
+    font-family: 'DM Mono', monospace;
+    font-size: 0.75rem;
+    color: var(--accent2);
+    margin-top: 10px;
+    display: none;
+    letter-spacing: 0.05em;
+  }
+  .error-msg.show { display: block; }
+
+  /* Footer */
+  footer {
+    padding: 60px 0 40px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    border-top: 1px solid var(--border);
+    margin-top: 60px;
+    animation: fadeUp 0.7s 0.4s ease both;
+  }
+
+  .footer-text {
+    font-family: 'DM Mono', monospace;
+    font-size: 0.65rem;
+    color: var(--muted);
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+  }
+
+  .divider {
+    height: 1px;
+    background: linear-gradient(90deg, transparent, var(--border), transparent);
+    margin: 40px 0;
+  }
+
+  /* Ticker */
+  .ticker {
+    font-family: 'DM Mono', monospace;
+    font-size: 0.65rem;
+    color: var(--muted);
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    overflow: hidden;
+    margin: 8px 0 0;
+  }
+  .ticker-dot { color: var(--accent); }
+
+  /* Animations */
+  @keyframes fadeDown {
+    from { opacity: 0; transform: translateY(-16px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+  @keyframes fadeUp {
+    from { opacity: 0; transform: translateY(16px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+
+  /* Spinner */
+  .spinner {
+    width: 14px; height: 14px;
+    border: 2px solid rgba(10,10,8,0.3);
+    border-top-color: #0a0a08;
+    border-radius: 50%;
+    animation: spin 0.6s linear infinite;
+    display: inline-block;
+    vertical-align: middle;
+    margin-right: 6px;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  /* Tabs */
+  .tabs {
+    display: flex;
+    gap: 0;
+    margin-bottom: 32px;
+    border-bottom: 1px solid var(--border);
+    animation: fadeUp 0.7s 0.15s ease both;
+  }
+
+  .tab {
+    font-family: 'DM Mono', monospace;
+    font-size: 0.7rem;
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
+    color: var(--muted);
+    padding: 12px 24px;
+    cursor: pointer;
+    border-bottom: 2px solid transparent;
+    margin-bottom: -1px;
+    transition: all 0.2s;
+    background: none;
+    border-top: none;
+    border-left: none;
+    border-right: none;
+  }
+  .tab.active { color: var(--accent); border-bottom-color: var(--accent); }
+  .tab:hover:not(.active) { color: var(--text); }
+
+  .tab-panel { display: none; }
+  .tab-panel.active { display: block; animation: fadeUp 0.3s ease both; }
+
+  @media (max-width: 600px) {
+    .card { padding: 24px; }
+    .input-row { flex-direction: column; }
+    .btn { width: 100%; }
+    .stats-grid { grid-template-columns: 1fr; }
+    h1 { font-size: clamp(3rem, 15vw, 5rem); }
+  }
+</style>
 </head>
 <body>
 
-<h2>URL Shortener</h2>
+<div class="orb orb1"></div>
+<div class="orb orb2"></div>
 
-<!-- Shorten URL -->
-<form onsubmit="shortenURL(event)">
-    <input type="text" id="urlInput" placeholder="Enter URL">
-    <button type="submit">Shorten</button>
-</form>
+<div class="container">
+  <header>
+    <a class="logo" href="#">SN<span>//</span>IP</a>
+    <div style="text-align:right">
+      <div class="footer-text" id="status-indicator">● API Connected</div>
+      <div class="ticker">
+        <span class="ticker-dot">▸</span>
+        <span id="base-url-display">localhost:8000</span>
+      </div>
+    </div>
+  </header>
 
-<div class="box" id="shortResult">
-    link will appear here 
+  <div class="hero">
+    <h1>
+      <span class="line1">CUT THE</span>
+      <span class="line2">CLUTTER.</span>
+      <span class="line3">KEEP THE LINK.</span>
+    </h1>
+    <p class="tagline">// Blazing fast URL shortener — zero friction</p>
+  </div>
+
+  <div class="tabs">
+    <button class="tab active" onclick="switchTab('shorten')">Shorten URL</button>
+    <button class="tab" onclick="switchTab('stats')">Link Stats</button>
+    <button class="tab" onclick="switchTab('config')">Config</button>
+  </div>
+
+  <!-- Shorten Tab -->
+  <div class="tab-panel active" id="tab-shorten">
+    <div class="card">
+      <label class="label">// Paste your long URL</label>
+      <div class="input-row">
+        <input type="url" id="url-input" placeholder="https://your-very-long-url.com/goes/here" autocomplete="off" spellcheck="false">
+        <button class="btn" onclick="shortenURL(event)" id="shorten-btn">Snip It</button>
+      </div>
+      <div class="error-msg" id="shorten-error"></div>
+
+      <div class="result-box" id="result-box">
+        <div class="result-label">URL Shortened Successfully</div>
+        <div class="result-url">
+          <span id="result-url-text"></span>
+          <button class="copy-btn" id="copy-btn" onclick="copyURL()">Copy</button>
+        </div>
+        <div style="margin-top: 12px; display: flex; gap: 8px;">
+          <button class="btn secondary" onclick="viewStats()" style="flex:1; padding: 10px;">View Stats</button>
+          <button class="btn secondary" onclick="clearResult()" style="flex:1; padding: 10px;">New URL</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Stats Tab -->
+  <div class="tab-panel" id="tab-stats">
+    <div class="card">
+      <label class="label">// Enter shortened code or full short URL</label>
+      <div class="input-row stats-form">
+        <input type="text" id="stats-input" placeholder="e.g. abc123" autocomplete="off" spellcheck="false">
+        <button class="btn" onclick="fetchStats()">Fetch Stats</button>
+      </div>
+      <div class="error-msg" id="stats-error"></div>
+    </div>
+
+    <div class="stats-grid" id="stats-grid">
+      <div class="stat-card" data-num="01">
+        <div class="stat-label">Original URL</div>
+        <div class="stat-value" id="stat-url">—</div>
+      </div>
+      <div class="stat-card" data-num="02">
+        <div class="stat-label">Total Clicks</div>
+        <div class="stat-big" id="stat-count">0</div>
+      </div>
+      <div class="stat-card" data-num="03">
+        <div class="stat-label">Created On</div>
+        <div class="stat-value" id="stat-date">—</div>
+      </div>
+      <div class="stat-card" data-num="04">
+        <div class="stat-label">Last Accessed</div>
+        <div class="stat-value" id="stat-last">—</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Config Tab -->
+  <div class="tab-panel" id="tab-config">
+    <div class="card">
+      <label class="label">// API Base URL</label>
+      <div class="input-row" style="margin-bottom: 20px;">
+        <input type="text" id="api-url-input" placeholder="http://localhost:8000" value="http://localhost:8000">
+        <button class="btn" onclick="saveConfig()">Save</button>
+      </div>
+      <div class="error-msg show" style="color: var(--muted); display: block;">
+        Configure this to match your FastAPI server address.
+      </div>
+    </div>
+
+    <div class="card">
+      <label class="label">// API Endpoints</label>
+      <div style="display: flex; flex-direction: column; gap: 10px; margin-top: 4px;">
+        <div style="display: flex; justify-content: space-between; align-items: center; padding: 12px 0; border-bottom: 1px solid var(--border);">
+          <span style="font-family: DM Mono, monospace; font-size: 0.75rem; color: var(--muted);">POST</span>
+          <span style="font-family: DM Mono, monospace; font-size: 0.8rem; color: var(--text);">/create_url/shorten</span>
+          <span style="font-family: DM Mono, monospace; font-size: 0.65rem; color: var(--success);">Active</span>
+        </div>
+        <div style="display: flex; justify-content: space-between; align-items: center; padding: 12px 0; border-bottom: 1px solid var(--border);">
+          <span style="font-family: DM Mono, monospace; font-size: 0.75rem; color: var(--muted);">GET</span>
+          <span style="font-family: DM Mono, monospace; font-size: 0.8rem; color: var(--text);">/stats/{shortened}</span>
+          <span style="font-family: DM Mono, monospace; font-size: 0.65rem; color: var(--success);">Active</span>
+        </div>
+        <div style="display: flex; justify-content: space-between; align-items: center; padding: 12px 0;">
+          <span style="font-family: DM Mono, monospace; font-size: 0.75rem; color: var(--muted);">GET</span>
+          <span style="font-family: DM Mono, monospace; font-size: 0.8rem; color: var(--text);">/{shortened}</span>
+          <span style="font-family: DM Mono, monospace; font-size: 0.65rem; color: var(--success);">Active</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <footer>
+    <span class="footer-text">SNIP v1.0 — URL Shortener</span>
+    <span class="footer-text">Built on FastAPI</span>
+  </footer>
 </div>
 
-<hr>
-
-<!-- Stats -->
-<input type="text" id="statsInput" placeholder="Enter short code">
-<button onclick="getStats()">Get Stats</button>
-
-<div class="box" id="statsResult"></div>
-
 <script>
-    const BASE_URL = "http://127.0.0.1:8000";
+  let API_BASE = localStorage.getItem('snip_api_base') || 'http://localhost:8000';
+  let currentShortened = null;
 
-async function shortenURL(event) {
-    event.preventDefault();
+  // Init
+  document.getElementById('api-url-input').value = API_BASE;
+  document.getElementById('base-url-display').textContent = API_BASE.replace(/^https?:\/\//, '');
 
-    const url = document.getElementById("urlInput").value;
+  // Enter key support
+  document.getElementById('url-input').addEventListener('keydown', e => { if (e.key === 'Enter') shortenURL(); });
+  document.getElementById('stats-input').addEventListener('keydown', e => { if (e.key === 'Enter') fetchStats(); });
+
+  function switchTab(name) {
+    document.querySelectorAll('.tab').forEach((t, i) => {
+      const names = ['shorten', 'stats', 'config'];
+      t.classList.toggle('active', names[i] === name);
+    });
+    document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
+    document.getElementById('tab-' + name).classList.add('active');
+  }
+
+  function saveConfig() {
+    API_BASE = document.getElementById('api-url-input').value.replace(/\/$/, '');
+    localStorage.setItem('snip_api_base', API_BASE);
+    document.getElementById('base-url-display').textContent = API_BASE.replace(/^https?:\/\//, '');
+    const btn = event.target;
+    btn.textContent = 'Saved!';
+    setTimeout(() => btn.textContent = 'Save', 1500);
+  }
+
+  async function shortenURL() {
+    const input = document.getElementById('url-input');
+    const btn = document.getElementById('shorten-btn');
+    const errEl = document.getElementById('shorten-error');
+    const url = input.value.trim();
+
+    errEl.classList.remove('show');
+
+    if (!url) {
+      showError('shorten-error', 'Please enter a URL first.');
+      input.focus();
+      return;
+    }
+
+    btn.innerHTML = '<span class="spinner"></span>Snipping...';
+    btn.disabled = true;
 
     try {
-        const response = await fetch(
-            `${BASE_URL}/shorten?url=${encodeURIComponent(url)}`,
-            { method: "POST" }
-        );
+      const res = await fetch(`${API_BASE}/create_url/shorten`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ url })
+      });
 
-        if (!response.ok) {
-            throw new Error("Server error");
-        }
+      if (!res.ok) throw new Error(`Server error: ${res.status}`);
 
-        const data = await response.json();
+      const data = await res.json();
+      currentShortened = data.shortened_url;
 
-        if (data.shortened_url) {
-            const shortLink = `${BASE_URL}/${data.shortened_url}`;
-            document.getElementById("shortResult").innerHTML =
-                `Short URL: <a href="${shortLink}">${shortLink}</a>`;
-        }
-    } catch (error) {
-        document.getElementById("shortResult").innerText =
-            "Error shortening URL";
-        console.error(error);
+      const fullShort = `${API_BASE}/${currentShortened}`;
+      document.getElementById('result-url-text').textContent = fullShort;
+      document.getElementById('result-box').classList.add('show');
+      document.getElementById('copy-btn').textContent = 'Copy';
+      document.getElementById('copy-btn').classList.remove('copied');
+
+    } catch (err) {
+      showError('shorten-error', `Error: ${err.message}. Check your API URL in Config.`);
+    } finally {
+      btn.innerHTML = 'Snip It';
+      btn.disabled = false;
     }
-}
-    
+  }
 
-    async function getStats() {
-        const shortCode = document.getElementById("statsInput").value;
+  async function fetchStats(code) {
+    const input = document.getElementById('stats-input');
+    const shortened = code || input.value.trim().split('/').pop();
 
-        const response = await fetch(`${BASE_URL}/stats/${shortCode}`);
-        const data = await response.json();
-
-        if (data.error) {
-            document.getElementById("statsResult").innerText = "URL not found";
-            return;
-        }
-
-        document.getElementById("statsResult").innerHTML = `
-            Original URL: <a href="${data.original_url}" target="_blank">${data.original_url}</a><br>
-            Access Count: ${data.access_count}<br>
-            Created: ${data.created_date}<br>
-            Last Accessed: ${data.last_accessed}
-        `;
+    if (!shortened) {
+      showError('stats-error', 'Please enter a shortened code.');
+      return;
     }
+
+    const btn = event?.target;
+    if (btn) { btn.innerHTML = '<span class="spinner"></span>Loading...'; btn.disabled = true; }
+
+    document.getElementById('stats-grid').classList.remove('show');
+
+    try {
+      const res = await fetch(`${API_BASE}/stats/${shortened}`);
+      if (!res.ok) throw new Error(`Server error: ${res.status}`);
+
+      const data = await res.json();
+      if (data.error) { showError('stats-error', data.error); return; }
+
+      document.getElementById('stat-url').textContent = data.original_url;
+      document.getElementById('stat-count').textContent = data.access_count;
+      document.getElementById('stat-date').textContent = formatDate(data.created_date);
+      document.getElementById('stat-last').textContent = formatDate(data.last_accessed);
+      document.getElementById('stats-grid').classList.add('show');
+      document.getElementById('stats-error').classList.remove('show');
+
+    } catch (err) {
+      showError('stats-error', `Error: ${err.message}. Check your API URL in Config.`);
+    } finally {
+      if (btn) { btn.innerHTML = 'Fetch Stats'; btn.disabled = false; }
+    }
+  }
+
+  function viewStats() {
+    if (!currentShortened) return;
+    switchTab('stats');
+    document.getElementById('stats-input').value = currentShortened;
+    fetchStats(currentShortened);
+  }
+
+  function clearResult() {
+    document.getElementById('url-input').value = '';
+    document.getElementById('result-box').classList.remove('show');
+    document.getElementById('url-input').focus();
+    currentShortened = null;
+  }
+
+  function copyURL() {
+    const text = document.getElementById('result-url-text').textContent;
+    navigator.clipboard.writeText(text).then(() => {
+      const btn = document.getElementById('copy-btn');
+      btn.textContent = 'Copied!';
+      btn.classList.add('copied');
+      setTimeout(() => { btn.textContent = 'Copy'; btn.classList.remove('copied'); }, 2000);
+    });
+  }
+
+  function showError(id, msg) {
+    const el = document.getElementById(id);
+    el.textContent = '⚠ ' + msg;
+    el.classList.add('show');
+  }
+
+  function formatDate(dateStr) {
+    if (!dateStr) return '—';
+    try {
+      const d = new Date(dateStr);
+      return d.toLocaleString('en-US', {
+        month: 'short', day: 'numeric', year: 'numeric',
+        hour: '2-digit', minute: '2-digit'
+      });
+    } catch { return dateStr; }
+  }
 </script>
-
 </body>
 </html>

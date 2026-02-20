@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>URL Shortener</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 500px;
+            margin: 50px auto;
+        }
+
+        input, button {
+            width: 100%;
+            padding: 8px;
+            margin-top: 10px;
+        }
+
+        button {
+            cursor: pointer;
+        }
+
+        .box {
+            margin-top: 20px;
+            padding: 10px;
+            background: #f2f2f2;
+        }
+    </style>
+</head>
+<body>
+
+<h2>URL Shortener</h2>
+
+<!-- Shorten URL -->
+<form onsubmit="shortenURL(event)">
+    <input type="text" id="urlInput" placeholder="Enter URL">
+    <button type="submit">Shorten</button>
+</form>
+
+<div class="box" id="shortResult">
+    link will appear here : 
+</div>
+
+<hr>
+
+<!-- Stats -->
+<input type="text" id="statsInput" placeholder="Enter short code">
+<button onclick="getStats()">Get Stats</button>
+
+<div class="box" id="statsResult"></div>
+
+<script>
+    const BASE_URL = "http://127.0.0.1:8000";
+
+async function shortenURL(event) {
+    event.preventDefault();
+
+    const url = document.getElementById("urlInput").value;
+
+    try {
+        const response = await fetch(
+            `${BASE_URL}/create_url/shorten?url=${encodeURIComponent(url)}`,
+            { method: "POST" }
+        );
+
+        if (!response.ok) {
+            throw new Error("Server error");
+        }
+
+        const data = await response.json();
+
+        if (data.shortened_url) {
+            const shortLink = `${BASE_URL}/${data.shortened_url}`;
+            document.getElementById("shortResult").innerHTML =
+                `Short URL: <a href="${shortLink}" target="_blank">${shortLink}</a>`;
+        }
+    } catch (error) {
+        document.getElementById("shortResult").innerText =
+            "Error shortening URL";
+        console.error(error);
+    }
+}
+    
+
+    async function getStats() {
+        const shortCode = document.getElementById("statsInput").value;
+
+        const response = await fetch(`${BASE_URL}/stats/${shortCode}`);
+        const data = await response.json();
+
+        if (data.error) {
+            document.getElementById("statsResult").innerText = "URL not found";
+            return;
+        }
+
+        document.getElementById("statsResult").innerHTML = `
+            Original URL: <a href="${data.original_url}" target="_blank">${data.original_url}</a><br>
+            Access Count: ${data.access_count}<br>
+            Created: ${data.created_date}<br>
+            Last Accessed: ${data.last_accessed}
+        `;
+    }
+</script>
+
+</body>
+</html>

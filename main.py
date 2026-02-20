@@ -4,8 +4,14 @@ from fastapi.responses import RedirectResponse
 import random
 from sqlalchemy import create_engine, text
 from datetime import datetime
+from pydantic import BaseModel
 
 app = FastAPI()
+
+
+class URLRequest(BaseModel):
+    url: str
+
 
 engine = create_engine("sqlite:///test.db", echo=True)
 
@@ -17,6 +23,11 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+
+@app.on_event("startup")
+def startup_event():
+    create_table()
 
 
 def create_table():
@@ -92,12 +103,11 @@ async def redirect_webpage_url(shortened: str):
     return RedirectResponse(url=url)
 
 
-@app.post("/shorten")
-async def shorten_url(url: str):
-    create_table()
+@app.post("/create_url/shorten")
+async def shorten_url(request: URLRequest):
+    url = request.url
 
     with engine.connect() as conn:
-        # Keep generating until unique
         while True:
             url_shortened = "".join(
                 random.choices("abcdefghijklmnopqrstuvwxyz0123456789", k=6)
@@ -120,7 +130,7 @@ async def shorten_url(url: str):
                 "url": url,
                 "short": url_shortened,
                 "count": 0,
-                "date": str(datetime.now().date()),
+                "date": str(datetime.now()),
                 "last_accessed": str(datetime.now()),
             },
         )
