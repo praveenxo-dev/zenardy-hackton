@@ -1,4 +1,6 @@
 from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import RedirectResponse
 import random
 from sqlalchemy import create_engine, text
 from datetime import datetime
@@ -6,6 +8,15 @@ from datetime import datetime
 app = FastAPI()
 
 engine = create_engine("sqlite:///test.db", echo=True)
+
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],  # change in production
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 
 def create_table():
@@ -28,6 +39,57 @@ def create_table():
 @app.get("/")
 async def main():
     return {"message": "app is working"}
+
+
+@app.get("/stats/{shortened}")
+async def stats(shortened: str):
+    with engine.connect() as conn:
+        result = conn.execute(
+            text(
+                "SELECT url, count, date, last_accessed FROM urls WHERE url_shortened = :short"
+            ),
+            {"short": shortened},
+        ).fetchone()
+
+        if not result:
+            return {"error": "URL not found"}
+
+        url, count, date, last_accessed = result
+
+    return {
+        "original_url": url,
+        "access_count": count,
+        "created_date": date,
+        "last_accessed": last_accessed,
+    }
+
+
+@app.get("/{shortened}")
+async def redirect_webpage_url(shortened: str):
+    with engine.connect() as conn:
+        result = conn.execute(
+            text("SELECT url, count FROM urls WHERE url_shortened = :short"),
+            {"short": shortened},
+        ).fetchone()
+
+        if not result:
+            return {"error": "URL not found"}
+
+        url, count = result
+        conn.execute(
+            text("""
+                UPDATE urls
+                SET count = :count, last_accessed = :last_accessed
+                WHERE url_shortened = :short
+            """),
+            {
+                "count": count + 1,
+                "last_accessed": str(datetime.now()),
+                "short": shortened,
+            },
+        )
+        conn.commit()
+    return RedirectResponse(url=url)
 
 
 @app.post("/shorten")
@@ -65,32 +127,3 @@ async def shorten_url(url: str):
         conn.commit()
 
     return {"shortened_url": url_shortened}
-
-
-@app.get("/{shortened}")
-async def redirect(shortened: str):
-    with engine.connect() as conn:
-        result = conn.execute(
-            text("SELECT url, count FROM urls WHERE url_shortened = :short"),
-            {"short": shortened},
-        ).fetchone()
-
-        if not result:
-            return {"error": "URL not found"}
-
-        url, count = result
-        conn.execute(
-            text("""
-                UPDATE urls
-                SET count = :count, last_accessed = :last_accessed
-                WHERE url_shortened = :short
-            """),
-            {
-                "count": count + 1,
-                "last_accessed": str(datetime.now()),
-                "short": shortened,
-            },
-        )
-        conn.commit()
-
-    return {"url": url}
