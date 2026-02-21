@@ -1,33 +1,40 @@
 from fastapi import FastAPI
-from fastapi.middleware.cors import CORSMiddleware
+# from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import RedirectResponse
 import random
 from sqlalchemy import create_engine, text
 from datetime import datetime
 from pydantic import BaseModel
+from contextlib import asynccontextmanager
+from fastapi.templating import Jinja2Templates
+from fastapi import Request
 
-app = FastAPI()
+
+engine = create_engine(
+    "sqlite:///test.db", echo=True, connect_args={"check_same_thread": False}
+)
+
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    create_table()
+    yield
+
+
+app = FastAPI(lifespan=lifespan)
 
 
 class URLRequest(BaseModel):
     url: str
 
 
-engine = create_engine("sqlite:///test.db", echo=True)
-
-
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=["*"],  # change in production
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
-
-
-@app.on_event("startup")
-def startup_event():
-    create_table()
+# app.add_middleware(
+#     CORSMiddleware,
+#     allow_origins=["*"],  # change in production
+#     allow_credentials=True,
+#     allow_methods=["*"],
+#     allow_headers=["*"],
+# )
 
 
 def create_table():
@@ -47,9 +54,12 @@ def create_table():
         conn.commit()
 
 
+templates = Jinja2Templates(directory="templates")
+
+
 @app.get("/")
-async def main():
-    return {"message": "app is working"}
+async def main(request: Request):
+    return templates.TemplateResponse("index.html", {"request": request})
 
 
 @app.get("/stats/{shortened}")
@@ -77,6 +87,9 @@ async def stats(shortened: str):
 
 @app.get("/{shortened}")
 async def redirect_webpage_url(shortened: str):
+    if len(shortened) != 6:
+        return {"error": "Invalid shortened URL"}
+
     with engine.connect() as conn:
         result = conn.execute(
             text("SELECT url, count FROM urls WHERE url_shortened = :short"),
@@ -103,37 +116,37 @@ async def redirect_webpage_url(shortened: str):
     return RedirectResponse(url=url)
 
 
-# @app.post("/create_url/shorten")
-# async def shorten_url(request: URLRequest):
-#     url = request.url
+@app.post("/create_url/shorten")
+async def shorten_url(request: URLRequest):
+    url = request.url
 
-#     with engine.connect() as conn:
-#         while True:
-#             url_shortened = "".join(
-#                 random.choices("abcdefghijklmnopqrstuvwxyz0123456789", k=6)
-#             )
+    with engine.connect() as conn:
+        while True:
+            url_shortened = "".join(
+                random.choices("abcdefghijklmnopqrstuvwxyz0123456789", k=6)
+            )
 
-#             result = conn.execute(
-#                 text("SELECT 1 FROM urls WHERE url_shortened = :short"),
-#                 {"short": url_shortened},
-#             ).fetchone()
+            result = conn.execute(
+                text("SELECT url_shortened FROM urls WHERE url = :url"),
+                {"url": url},
+            ).fetchone()
 
-#             if not result:
-#                 break
+            if result:
+                return {"shortened_url": result[0]}
 
-#         conn.execute(
-#             text("""
-#                 INSERT INTO urls (url, url_shortened, count, date, last_accessed)
-#                 VALUES (:url, :short, :count, :date, :last_accessed)
-#             """),
-#             {
-#                 "url": url,
-#                 "short": url_shortened,
-#                 "count": 0,
-#                 "date": str(datetime.now()),
-#                 "last_accessed": str(datetime.now()),
-#             },
-#         )
-#         conn.commit()
+            conn.execute(
+                text("""
+                INSERT INTO urls (url, url_shortened, count, date, last_accessed)
+                VALUES (:url, :short, :count, :date, :last_accessed)
+            """),
+                {
+                    "url": url,
+                    "short": url_shortened,
+                    "count": 0,
+                    "date": str(datetime.now()),
+                    "last_accessed": str(datetime.now()),
+                },
+            )
+            conn.commit()
 
-#     return {"shortened_url": url_shortened}
+    return {"shortened_url": url_shortened}

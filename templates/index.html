@@ -573,7 +573,7 @@
       <label class="label">// Paste your long URL</label>
       <div class="input-row">
         <input type="url" id="url-input" placeholder="https://your-very-long-url.com/goes/here" autocomplete="off" spellcheck="false">
-        <button class="btn" onclick="shortenURL(event)" id="shorten-btn">Snip It</button>
+        <button type="button" class="btn" onclick="shortenURL(event)" id="shorten-btn">Snip It</button>
       </div>
       <div class="error-msg" id="shorten-error"></div>
 
@@ -693,7 +693,8 @@
     setTimeout(() => btn.textContent = 'Save', 1500);
   }
 
-  async function shortenURL() {
+  async function shortenURL(event) {
+    if (event) event.preventDefault();
     const input = document.getElementById('url-input');
     const btn = document.getElementById('shorten-btn');
     const errEl = document.getElementById('shorten-error');
@@ -712,10 +713,10 @@
 
     try {
       const res = await fetch(`${API_BASE}/create_url/shorten`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ url })
-      });
+  method: 'POST',
+  headers: { 'Content-Type': 'application/json' },
+  body: JSON.stringify({ url })
+});;
 
       if (!res.ok) throw new Error(`Server error: ${res.status}`);
 
