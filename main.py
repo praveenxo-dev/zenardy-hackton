@@ -1,4 +1,5 @@
 from fastapi import FastAPI
+
 # from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import RedirectResponse
 import random
@@ -150,3 +151,9 @@ async def shorten_url(request: URLRequest):
             conn.commit()
 
     return {"shortened_url": url_shortened}
+
+
+if __name__ == "__main__":
+    import uvicorn
+
+    uvicorn.run(app, host="0.0.0.0", port=8000)
