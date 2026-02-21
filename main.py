@@ -88,9 +88,6 @@ async def stats(shortened: str):
 
 @app.get("/{shortened}")
 async def redirect_webpage_url(shortened: str):
-    if len(shortened) != 6:
-        return {"error": "Invalid shortened URL"}
-
     with engine.connect() as conn:
         result = conn.execute(
             text("SELECT url, count FROM urls WHERE url_shortened = :short"),
@@ -101,19 +98,24 @@ async def redirect_webpage_url(shortened: str):
             return {"error": "URL not found"}
 
         url, count = result
-        conn.execute(
-            text("""
-                UPDATE urls
-                SET count = :count, last_accessed = :last_accessed
-                WHERE url_shortened = :short
-            """),
-            {
-                "count": count + 1,
-                "last_accessed": str(datetime.now()),
-                "short": shortened,
-            },
-        )
-        conn.commit()
+
+        try:
+            conn.execute(
+                text("""
+                    UPDATE urls
+                    SET count = :count, last_accessed = :last_accessed
+                    WHERE url_shortened = :short
+                """),
+                {
+                    "count": count + 1,
+                    "last_accessed": str(datetime.now()),
+                    "short": shortened,
+                },
+            )
+            conn.commit()
+        except:
+            pass  # avoid crash on Vercel
+
     return RedirectResponse(url=url)
 
 
