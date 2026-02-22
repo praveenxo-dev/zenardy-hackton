@@ -1,6 +1,8 @@
+import os
+
 from fastapi import FastAPI
 
-# from fastapi.middleware.cors import CORSMiddleware
+from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import RedirectResponse
 import random
 from sqlalchemy import create_engine, text
@@ -9,11 +11,13 @@ from pydantic import BaseModel
 from contextlib import asynccontextmanager
 from fastapi.templating import Jinja2Templates
 from fastapi import Request
+from dotenv import load_dotenv
 
 
-engine = create_engine(
-    "sqlite:///test.db", echo=True, connect_args={"check_same_thread": False}
-)
+load_dotenv()
+
+DATABASE_URL = os.getenv("DATABASE_URL")
+engine = create_engine(DATABASE_URL, connect_args={"connect_timeout": 10})
 
 
 @asynccontextmanager
@@ -29,13 +33,13 @@ class URLRequest(BaseModel):
     url: str
 
 
-# app.add_middleware(
-#     CORSMiddleware,
-#     allow_origins=["*"],  # change in production
-#     allow_credentials=True,
-#     allow_methods=["*"],
-#     allow_headers=["*"],
-# )
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],  # change in production
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 
 def create_table():
@@ -43,7 +47,7 @@ def create_table():
         conn.execute(
             text("""
             CREATE TABLE IF NOT EXISTS urls (
-                id INTEGER PRIMARY KEY,
+                id INTEGER GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
                 url TEXT,
                 url_shortened TEXT UNIQUE,
                 count INTEGER,

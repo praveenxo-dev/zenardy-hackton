@@ -623,7 +623,7 @@
   </div>
 
   <!-- Config Tab -->
-  <div class="tab-panel" id="tab-config">
+  <!-- <div class="tab-panel" id="tab-config">
     <div class="card">
       <label class="label">// API Base URL</label>
       <div class="input-row" style="margin-bottom: 20px;">
@@ -655,7 +655,7 @@
         </div>
       </div>
     </div>
-  </div>
+  </div> -->
 
   <footer>
     <span class="footer-text">SNIP v1.0 — URL Shortener</span>
@@ -685,7 +685,7 @@
   }
 
   function saveConfig() {
-    API_BASE = document.getElementById('api-url-input').value.replace(/\/$/, '');
+    API_BASE = 'http://localhost:8000'; // For now, hardcoded to default. You can uncomment the line below to allow custom API URLs.
     localStorage.setItem('snip_api_base', API_BASE);
     document.getElementById('base-url-display').textContent = API_BASE.replace(/^https?:\/\//, '');
     const btn = event.target;
